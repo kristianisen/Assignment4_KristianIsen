@@ -1,0 +1,202 @@
+---
+title: "bachelor_dataClean"
+author: "Kristian Isen"
+date: "3/12/2021"
+output: html_document
+---
+# Load packages
+```{r setup, include=FALSE}
+library(pacman)
+p_load(dplyr, plyr, tidyr, writexl, readxl, readr, matrixStats, splitstackshape, stringr, reshape)
+setwd("/Users/KristianIsen/Dropbox/BscOecon/Bachelor/")
+```
+
+# Load data
+```{r, include = FALSE}
+q_prime = read_excel("Data/data_raw/data_12032021/data_exp_1.xlsx")
+q_demo = read_excel("Data/data_raw/data_12032021/data_exp_2.xlsx")
+rand = read_excel("Data/data_raw/data_12032021/data_exp_3.xlsx")
+con = read_excel("Data/data_raw/data_12032021/data_exp_4.xlsx")
+q_no.prime = read_excel("Data/data_raw/data_12032021/data_exp_5.xlsx")
+control.1 = read_excel("Data/data_raw/data_12032021/data_exp_6.xlsx")
+control.2 = read_excel("Data/data_raw/data_12032021/data_exp_6.xlsx")
+exp.1 = read_excel("Data/data_raw/data_12032021/data_exp_7.xlsx")
+exp.2 = read_excel("Data/data_raw/data_12032021/data_exp_7.xlsx")
+```
+
+# Clean all and merge to wide data
+```{r}
+# Cleaning
+# reading consents
+con = subset(con, select = c("Participant Private ID", "accept"))
+# Control: reading responses and reaction times seperately and merging 
+control.1 = subset(control.1, control.1$display %in% c("wine1", "wine2", "wine3"),
+                 select = c("Participant Private ID", "display", "Response"))
+control.1 = spread(control.1, key = "display", value = c("Response"))
+names(control.1)
+colnames(control.1) = c("Participant Private ID", "W1: response", "W2: response", "W3: response")
+control.2 = subset(control.2, control.2$display %in% c("wine1", "wine2", "wine3"),
+                 select = c("Participant Private ID", "display", "Reaction Time"))
+control.2 = spread(control.2, key = "display", value = c("Reaction Time"))
+names(control.2)
+colnames(control.2) = c("Participant Private ID", "W1: time", "W2: time", "W3: time")
+control = merge(control.1, control.2, by = "Participant Private ID", all = TRUE)
+# Experiment: reading responses and reaction times seperately and merging 
+exp.1 = subset(exp.1, exp.1$display %in% c("wine4", "wine5", "wine6", "wine7", "wine8", "wine9", "wine10"),
+                 select = c("Participant Private ID", "display", "Response"))
+exp.1 = spread(exp.1, key = "display", value = c("Response"))
+names(exp.1)
+colnames(exp.1) = c("Participant Private ID", "W10: response", "W4: response", "W5: response", 
+                    "W6: response", "W7: response", "W8: response", "W9: response")
+exp.2 = subset(exp.2, exp.2$display %in% c("wine4", "wine5", "wine6", "wine7", "wine8", "wine9", "wine10"),
+                 select = c("Participant Private ID", "display", "Reaction Time"))
+exp.2 = spread(exp.2, key = "display", value = c("Reaction Time"))
+names(exp.2)
+colnames(exp.2) = c("Participant Private ID", "W10: time", "W4: time", "W5: time", "W6: time", 
+                    "W7: time","W8: time", "W9: time")
+exp = merge(exp.1, exp.2, by = "Participant Private ID", all = TRUE)
+# Demographic info
+q_demo = subset(q_demo, select = c("Participant Private ID", #"UTC Timestamp", 
+                                   "age", "gender", "region", "education"))
+# No prime questions
+q_no.prime = subset(q_no.prime, select = c("Participant Private ID", "klima_hypp", "tilfredshed"))
+q_no.prime$Prime = "NO"
+# Prime questions
+q_prime = subset(q_prime, select = c("Participant Private ID", "klima_hypp", "tilfredshed"))
+q_prime$Prime = "YES"
+intersect(q_no.prime$`Participant Private ID`, q_prime$`Participant Private ID`) # Skal gerne være NA
+q_ans = rbind(q_no.prime, q_prime)
+# Randomise or not
+rand = subset(rand, select = c("Participant Private ID", "randomiser-rzoe"))
+
+# Merging
+ws = merge(q_demo, con, by = "Participant Private ID", all = TRUE)
+ws = merge(ws, q_ans, by = "Participant Private ID", all = TRUE)
+ws = merge(ws, control, by = "Participant Private ID", all = TRUE)
+ws = merge(ws, exp, by = "Participant Private ID", all = TRUE)
+names(ws)
+ws = ws[,c(1:12, 17:22, 16, 13:15, 24:29, 23)]
+names(ws)[names(ws) == "Participant Private ID"] = "ID"
+```
+
+# Add info on choices
+```{r}
+for (i in 1:nrow(ws)){
+  # W1
+  ws$`W1: response` = ifelse(ws$`W1: response` == "Venstre", "C_B", ws$`W1: response`)
+  ws$`W1: response` = ifelse(ws$`W1: response` == "Højre", "E_W", ws$`W1: response`)
+  
+  # W2
+  ws$`W2: response` = ifelse(ws$`W2: response` == "Venstre", "C_W", ws$`W2: response`)
+  ws$`W2: response` = ifelse(ws$`W2: response` == "Højre", "E_B", ws$`W2: response`)
+  
+  # W3
+  ws$`W3: response` = ifelse(ws$`W3: response` == "Venstre", "E_B", ws$`W3: response`)
+  ws$`W3: response` = ifelse(ws$`W3: response` == "Højre", "C_W", ws$`W3: response`)
+  
+  # W4
+  ws$`W4: response` = ifelse(ws$`W4: response` == "Venstre", "C_B_G", ws$`W4: response`)
+  ws$`W4: response` = ifelse(ws$`W4: response` == "Højre", "E_W_R", ws$`W4: response`)
+  
+  # W5
+  ws$`W5: response` = ifelse(ws$`W5: response` == "Venstre", "C_W_R", ws$`W5: response`)
+  ws$`W5: response` = ifelse(ws$`W5: response` == "Højre", "E_B_G", ws$`W5: response`)
+  
+  # W6
+  ws$`W6: response` = ifelse(ws$`W6: response` == "Venstre", "C_W_R", ws$`W6: response`)
+  ws$`W6: response` = ifelse(ws$`W6: response` == "Højre", "E_B_G", ws$`W6: response`)
+  
+  # W7
+  ws$`W7: response` = ifelse(ws$`W7: response` == "Venstre", "C_W_G", ws$`W7: response`)
+  ws$`W7: response` = ifelse(ws$`W7: response` == "Højre", "E_B_R", ws$`W7: response`)
+  
+  # W8
+  ws$`W8: response` = ifelse(ws$`W8: response` == "Venstre", "E_B_R", ws$`W8: response`)
+  ws$`W8: response` = ifelse(ws$`W8: response` == "Højre", "C_W_G", ws$`W8: response`)
+  
+  # W9
+  ws$`W9: response` = ifelse(ws$`W9: response` == "Venstre", "E_W_G", ws$`W9: response`)
+  ws$`W9: response` = ifelse(ws$`W9: response` == "Højre", "C_B_R", ws$`W9: response`)
+  
+  # W10
+  ws$`W10: response` = ifelse(ws$`W10: response` == "Venstre", "C_B_G", ws$`W10: response`)
+  ws$`W10: response` = ifelse(ws$`W10: response` == "Højre", "E_W_G", ws$`W10: response`)
+}
+ws = subset(ws, !is.na(ws$ID))
+names(ws)
+ws[,c(20:ncol(ws))] = lapply(ws[,c(20:ncol(ws))], as.numeric)
+ws[,c(20:ncol(ws))] = ws[,c(20:ncol(ws))] / 1000
+
+threshold = 1.5
+length(which(ws$`W1: time` < threshold))
+length(which(ws$`W2: time` < threshold))
+length(which(ws$`W3: time` < threshold))
+length(which(ws$`W4: time` < threshold))
+length(which(ws$`W5: time` < threshold))
+length(which(ws$`W6: time` < threshold))
+length(which(ws$`W7: time` < threshold))
+length(which(ws$`W8: time` < threshold))
+length(which(ws$`W9: time` < threshold))
+length(which(ws$`W10: time` < threshold))
+```
+
+# Create long data and add info to use in logit
+```{r}
+# Subsetting data to use in logit
+q_prime = read_excel("Data/data_raw/data_12032021/data_exp_1.xlsx")
+q_demo = read_excel("Data/data_raw/data_12032021/data_exp_2.xlsx")
+rand = read_excel("Data/data_raw/data_12032021/data_exp_3.xlsx")
+con = read_excel("Data/data_raw/data_12032021/data_exp_4.xlsx")
+q_no.prime = read_excel("Data/data_raw/data_12032021/data_exp_5.xlsx")
+control.1 = read_excel("Data/data_raw/data_12032021/data_exp_6.xlsx")
+control.2 = read_excel("Data/data_raw/data_12032021/data_exp_6.xlsx")
+exp.1 = read_excel("Data/data_raw/data_12032021/data_exp_7.xlsx")
+exp.2 = read_excel("Data/data_raw/data_12032021/data_exp_7.xlsx")
+
+con = subset(con, select = c("Participant Private ID", "accept"))
+
+# Control: reading responses and reaction times seperately and merging 
+control.1 = subset(control.1, control.1$display %in% c("wine1", "wine2", "wine3"),
+                 select = c("Participant Private ID", "display", "Response", "Reaction Time"))
+
+# Experiment: reading responses and reaction times seperately and merging 
+exp.1 = subset(exp.1, exp.1$display %in% c("wine4", "wine5", "wine6", "wine7", "wine8", "wine9", "wine10"),
+                 select = c("Participant Private ID", "display", "Response", "Reaction Time"))
+responses = rbind(control.1, exp.1)
+responses$choice_set = 1
+responses$choice_set = ifelse(responses$display %in% c("wine2", "wine6", "wine7"), 2, responses$choice_set)
+responses$choice_set = ifelse(responses$display %in% c("wine3", "wine5", "wine8"), 3, responses$choice_set)
+responses$`Reaction Time` = as.numeric(as.numeric(responses$`Reaction Time`) / 1000)
+
+# Demographic info
+q_demo = subset(q_demo, select = c("Participant Private ID", #"UTC Timestamp", 
+                                   "age", "gender", "region", "education"))
+
+# No prime questions
+q_no.prime = subset(q_no.prime, select = c("Participant Private ID", "klima_hypp", "tilfredshed"))
+q_no.prime$Prime = "NO"
+
+# Prime questions
+q_prime = subset(q_prime, select = c("Participant Private ID", "klima_hypp", "tilfredshed"))
+q_prime$Prime = "YES"
+intersect(q_no.prime$`Participant Private ID`, q_prime$`Participant Private ID`) # Skal gerne være NA
+q_ans = rbind(q_no.prime, q_prime)
+
+# Randomise or not
+rand = subset(rand, select = c("Participant Private ID", "randomiser-rzoe"))
+
+# Merging
+ws.long = merge(q_demo, con, by = "Participant Private ID", all = TRUE)
+ws.long = merge(ws.long, rand, by = "Participant Private ID", all = TRUE)
+ws.long = merge(ws.long, q_ans, by = "Participant Private ID", all = TRUE)
+ws.long = merge(ws.long, responses, by = "Participant Private ID", all = TRUE)
+ws.long = ws.long[!is.na(ws.long$`Participant Private ID`),]
+```
+
+
+# Write to file
+```{r}
+setwd("/Users/KristianIsen/Desktop/BscOecon/Bachelor/Data/")
+write_xlsx(ws, "data wide (cleaned) 15032021.xlsx")
+write_xlsx(ws.long, "data long (cleaned) 15032021.xlsx")
+```

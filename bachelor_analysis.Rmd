@@ -1,0 +1,115 @@
+---
+title: "bachelor_analysis"
+author: "Kristian Isen"
+date: "3/15/2021"
+output: html_document
+---
+## Load packages
+```{r setup, include=FALSE}
+library(pacman)
+p_load(dplyr, plyr, tidyr, writexl, readxl, readr, matrixStats, splitstackshape, stringr, reshape, reshape2, foreign, nnet, stargazer, margins, pscl)
+```
+
+## Load data
+```{r setup, include=FALSE}
+setwd("/Users/KristianIsen/Dropbox/BscOecon/Bachelor/Data/")
+ws = read_excel("data (cleaned) 15032021.xlsx")
+```
+
+## Overview and pivots
+```{r}
+## Control combintations
+control_overview = as.data.frame(table(subset(ws, select = c("W1: response", "W2: response", "W3: response"))))
+sum(control_overview$Freq)
+
+## Experiment combinations
+exp_overview = as.data.frame(table(subset(ws, select = c("W4: response", "W5: response", "W6: response",  "W7: response",
+                                                             "W8: response", "W9: response", "W10: response"))))
+sum(exp_overview$Freq)
+
+# Satisfaction for prime vs no-prime
+mean(subset(ws$tilfredshed, ws$Prime == "YES" ))
+mean(subset(ws$tilfredshed, ws$Prime == "NO" ))
+t.test(subset(ws$tilfredshed, ws$Prime == "YES" , select = c("tilfredshed")),
+       subset(ws$tilfredshed, ws$Prime == "NO" , select = c("tilfredshed")))
+```
+
+## Possible leave-outs
+```{r}
+lo = subset(ws, ws$`W1: response` == "E_W")
+
+# choice set 1
+length(which(ws$`W1: response` == "E_W")) / 125 * 100
+length(which(ws$`W1: response` == "C_B")) / 125 * 100
+length(which(ws$`W10: response` == "E_W_G")) / 125 * 100
+length(which(ws$`W10: response` == "C_B_G")) / 125 * 100
+length(which(ws$`W9: response` == "E_W_G")) / 125 * 100
+length(which(ws$`W9: response` == "C_B_R")) / 125 * 100
+length(which(ws$`W4: response` == "E_W_R")) / 125 * 100
+length(which(ws$`W4: response` == "C_B_G")) / 125 * 100
+
+print("Nyt choice set")
+# Choice set 2
+length(which(ws$`W2: response` == "C_W")) / 125 * 100
+length(which(ws$`W2: response` == "E_B")) / 125 * 100
+length(which(ws$`W6: response` == "C_W_R")) / 125 * 100
+length(which(ws$`W6: response` == "E_B_G")) / 125 * 100
+length(which(ws$`W7: response` == "C_W_G")) / 125 * 100
+length(which(ws$`W7: response` == "E_B_R")) / 125 * 100
+
+print("Nyt choice set")
+# Choice set 3
+length(which(ws$`W3: response` == "C_W")) / 125 * 100
+length(which(ws$`W3: response` == "E_B")) / 125 * 100
+length(which(ws$`W5: response` == "C_W_R")) / 125 * 100
+length(which(ws$`W5: response` == "E_B_G")) / 125 * 100
+length(which(ws$`W8: response` == "C_W_G")) / 125 * 100
+length(which(ws$`W8: response` == "E_B_R")) / 125 * 100
+```
+
+
+Note: 
+
+Der skal defineres en binær variabel, som indikerer, om vinen til højre har grønt mærkat eller ej (1 hvis ja, 0 hvis nej) - uafh. var.
+Derudover skal der defineres en binær variabel, som indikerer, om vinen hører til options 2 i det respektive choice set - afh. var.
+Det kræver nok, at man laver et nyt datasæt, som har langt format
+
+## Logit regressions
+```{r}
+
+
+
+
+# Creating personised function to get logit easily
+??multinom
+logm = multinom(1 ~ w2_bin + w6_bin + w7_bin, family = binomial("logit"), data = ws_bin)
+
+ws_bin$dummy = 1
+log.m = multinom(w2_bin + w6_bin + w7_bin ~ dummy, family = binomial("logit"), data = ws_bin)
+summary(log.m)
+predict(log.m)
+
+
+log.m = multinom(w2_bin ~ w6_bin + w7_bin, family = binomial("logit"), data = ws_bin)
+summary(log.m)
+me = marginal_effects(log.m)
+mean(me[,1])
+mean(me[,2])
+
+length(ws_bin$w2_bin)
+length(ws_bin$w6_bin)
+length(ws_bin$w7_bin)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
